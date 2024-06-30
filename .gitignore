@@ -1,4 +1,5 @@
 # rotem code 
+# **는 경로를 알아서 맞춰준다.
 **/rotem/Data/
 
 # Byte-compiled / optimized / DLL files
@@ -7,7 +8,7 @@ __pycache__/
 *$py.class
 
 **/*.txt
-
+**/*.csv
 # C extensions
 *.so
 
