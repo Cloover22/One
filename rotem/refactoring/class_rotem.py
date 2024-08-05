@@ -4,7 +4,7 @@ import numpy as np
 path = 'c:\\Users\\jaeju\\vscode\\Onepredict\\rotem\\Data\\train3_1.csv' # 2023년도 4월 2주차
 path2 = 'c:\\Users\\jaeju\\vscode\\Onepredict\\rotem\\Data\\train3_2.csv'
 
-class Rotem_SRS_Data:
+class Extract_Rotem_srs_Data:
     
     def __init__(self):
         pass
@@ -94,18 +94,18 @@ class Rotem_SRS_Data:
         return dict_data
     
     
-    def extract_main_waveform_dataframe(self, dict_data):
-    
+    def extract_main_waveform_dataframe(self, labeld_data):
+        
         main_waveform_df = {}
 
         # 대표 파형 (ㄷ자) 추출 알고리즘
-        for i in range(len(dict_data)):
+        for i in range(len(labeld_data)):
             
-            standard_speed_value = max(dict_data[i]['VVVF_SDR_ATS_SPEED'])* 0.8
-            standard_line = len(dict_data[i][dict_data[i]['VVVF_SDR_ATS_SPEED'] > standard_speed_value]) / len(dict_data[i])
+            standard_speed_value = max(labeld_data[i]['VVVF_SDR_ATS_SPEED'])* 0.8
+            standard_line = len(labeld_data[i][labeld_data[i]['VVVF_SDR_ATS_SPEED'] > standard_speed_value]) / len(labeld_data[i])
             
             if standard_line > 0.6 :
-                main_waveform_df[i] = dict_data[i]
+                main_waveform_df[i] = labeld_data[i]
                 
         main_waveform_df = {new_idx: value for new_idx, (old_idx, value) in enumerate(main_waveform_df.items())}
         
@@ -113,8 +113,8 @@ class Rotem_SRS_Data:
         return main_waveform_df
     
     
-    def extract_constant_speed_dataframe(self, dict_data):
-    
+    def extract_constant_speed_dataframe(self, main_waveform_data):
+        
         constant_df = pd.DataFrame()
         
         # Range Editable
@@ -122,48 +122,49 @@ class Rotem_SRS_Data:
         max_speed = 90
 
         # 정속 구간 추출 알고리즘 
-        for i in range(len(dict_data)):
+        for i in range(len(main_waveform_data)):
                     
-            if min_speed <= max(dict_data[i]['VVVF_SDR_ATS_SPEED']) < max_speed :
-                standard_constant_value = np.mean(dict_data[i].loc[dict_data[i]['label'] == 'constant', 'VVVF_SDR_ATS_SPEED'].values) * 0.7
+            if min_speed <= max(main_waveform_data[i]['VVVF_SDR_ATS_SPEED']) < max_speed :
+                standard_constant_value = np.mean(main_waveform_data[i].loc[main_waveform_data[i]['label'] == 'constant', 'VVVF_SDR_ATS_SPEED'].values) * 0.7
                 # 끝 부분 밀리는 데이터 제거
-                selected_idx = dict_data[i][(dict_data[i]['label'] == 'constant') & (dict_data[i]['VVVF_SDR_ATS_SPEED'] >= standard_constant_value)].index 
-                constant_df= pd.concat([constant_df, dict_data[i].loc[selected_idx]], ignore_index=True)
+                selected_idx = main_waveform_data[i][(main_waveform_data[i]['label'] == 'constant') & (main_waveform_data[i]['VVVF_SDR_ATS_SPEED'] >= standard_constant_value)].index 
+                constant_df= pd.concat([constant_df, main_waveform_data[i].loc[selected_idx]], ignore_index=True)
                             
         return constant_df
     
     
-    def extract_upper_speed_dataframe(self, dict_data):
-    
+    def extract_upper_speed_dataframe(self, main_waveform_data):
+        
         upper_df = pd.DataFrame()
         
         # 가속 구간 추출
-        for i in range(len(dict_data)):
-            selected_idx = dict_data[i][dict_data[i]['label'] == 'upper'].index
-            upper_df= pd.concat([upper_df, dict_data[i].loc[selected_idx]], ignore_index=True)
+        for i in range(len(main_waveform_data)):
+            selected_idx = main_waveform_data[i][main_waveform_data[i]['label'] == 'upper'].index
+            upper_df= pd.concat([upper_df, main_waveform_data[i].loc[selected_idx]], ignore_index=True)
                             
         return upper_df
 
 
-    '''
-    잔차 데이터 프레임,
-    speed_range_data : 원하는 가동 구간 데이터,
-                      정속 : extract_constant_speed_dataframe  
-                      가속 : extract_upper_speed_dataframe 
-    num : 원하는 절댓값 수
-    '''
-    def extract_residual_dataframe(self, speed_range_data, num):
-    
-        speed_range_data['Current_RES'] = speed_range_data['VVVF_SD_IRMS'] - speed_range_data['MOTOR_CURRENT']
-        speed_range_data['Voltage_RES'] = speed_range_data['VVVF_SD_ES'] - speed_range_data['VVVF_SD_FC']
+    def extract_residual_dataframe(self, 
+                                   constant_upper_segment_data,
+                                   num):
         
-        speed_range_data['abs_diff'] = (speed_range_data['VVVF_SD_IRMS'] - speed_range_data['MOTOR_CURRENT']).abs()
+        '''
+        잔차 반환 알고리즘
+        constant_upper_segment_data : 원하는 가동 구간 데이터,
+                                      정속 : extract_constant_speed_dataframe 의 return 값
+                                      가속 : extract_upper_speed_dataframe 의 return 값
+        num : 원하는 절댓값 수
+        '''
         
-        speed_range_data = speed_range_data[speed_range_data['abs_diff'] >= num]  # 잔차의 절댓값이 num 보다 큰 데이터만 반환
+        constant_upper_segment_data['Current_RES'] = constant_upper_segment_data['VVVF_SD_IRMS'] - constant_upper_segment_data['MOTOR_CURRENT']
+        constant_upper_segment_data['Voltage_RES'] = constant_upper_segment_data['VVVF_SD_ES'] - constant_upper_segment_data['VVVF_SD_FC']
+        constant_upper_segment_data['abs_diff'] = (constant_upper_segment_data['VVVF_SD_IRMS'] - constant_upper_segment_data['MOTOR_CURRENT']).abs()
         
-        speed_range_data = speed_range_data[['Current_RES', 'Voltage_RES']] # 잔차만 반환
+        constant_upper_segment_data = constant_upper_segment_data[constant_upper_segment_data['abs_diff'] >= num]  # 잔차의 절댓값이 num 보다 큰 데이터만 반환
+        constant_upper_segment_data = constant_upper_segment_data[['Current_RES', 'Voltage_RES']] # 잔차만 반환
         
-        return speed_range_data
+        return constant_upper_segment_data
     
     '''
     정속 / 가속 잔차의 분산 데이터 프레임 추출 
@@ -243,7 +244,7 @@ class Rotem_SRS_Data:
     
 if __name__ == "__main__":
     
-    r = Rotem_SRS_Data()
+    r = Extract_Rotem_srs_Data()
     
     '''
     EDA 할 때, 사용한 데이터
@@ -254,14 +255,17 @@ if __name__ == "__main__":
     df2 = r.preprocessed_df(df) # 이상치 제거한 df
     dict_df = r.get_label(df2) # 가동모드 label 부여 df 
     main_df = r.extract_main_waveform_dataframe(dict_df) # 대표 파형 df
-    constant_df = r.extract_constant_speed_dataframe(main_df) # 정속 구간 df
     
+    constant_df = r.extract_constant_speed_dataframe(main_df) # 정속 구간 df
     upper_df = r.extract_upper_speed_dataframe(main_df) # 대표 파형 중에 가속만 추출
     
+    # 잔차의 분산 df
     res_df_constant = r.extract_speed_range_var_dataframe(main_df, 'constant')
     res_df_upper = r.extract_speed_range_var_dataframe(main_df, 'upper')
     
-    res_df = r.extract_residual_dataframe(constant_df, 5) # 정속/가속 구간 중에 잔차만 가져오는 데이터
+    # 잔차 df
+    res_df = r.extract_residual_dataframe(constant_df,    # editable : constant_df / upper_df
+                                          5) 
     
     '''
     24년도 데이터 (검증 데이터)
@@ -272,12 +276,18 @@ if __name__ == "__main__":
     df2 = r.preprocessed_df(df) # 이상치 제거한 df
     dict_df = r.get_label(df2) # 가동모드 label 부여 df 
     main_df = r.extract_main_waveform_dataframe(dict_df) # 대표 파형 df
-    constant_df = r.extract_constant_speed_dataframe(main_df) # 정속 구간 df
 
+    constant_df = r.extract_constant_speed_dataframe(main_df) # 정속 구간 df
     upper_df = r.extract_upper_speed_dataframe(main_df) # 대표 파형 중에 가속만 추출
-    res_df = r.extract_residual_dataframe(constant_df, 5) # 정속/가속 구간 중에 잔차만 가져오는 데이터
-    
-    
+
+    # 잔차의 분산 df
+    res_df_constant = r.extract_speed_range_var_dataframe(main_df, 'constant')
+    res_df_upper = r.extract_speed_range_var_dataframe(main_df, 'upper')
+
+    # 잔차 df
+    res_df = r.extract_residual_dataframe(upper_df,    # editable : constant_df / upper_df
+                                          5)
+        
 '''
 딕셔너리 df concat 필요 시
 '''
